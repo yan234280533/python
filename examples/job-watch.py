@@ -21,10 +21,10 @@ def main():
     # default location.
     config.load_kube_config()
 
-    v1 = client.CoreV1Api()
+    v1 = client.BatchV1Api()
     count = 100000
     w = watch.Watch()
-    for event in w.stream(v1.list_namespace, timeout_seconds=0):
+    for event in w.stream(v1.list_job_for_all_namespaces, timeout_seconds=0):
         print("Event: %s %s" % (event['type'], event['object'].metadata.name))
         count += 1
         if not count:
