@@ -14,6 +14,7 @@
 
 from kubernetes import client, config, watch
 import logging
+import sys
 
 def delete_job_namespace(client,name,namespace):
     try:
@@ -26,24 +27,32 @@ def delete_pod_namespace(client,name,namespace):
     try:
         return client.delete_namespaced_pod(name=name, body={}, namespace=namespace)
     except Exception as err:
-        print("delete_pod_namespace failed,%s" % (err))
+        logger("delete_pod_namespace failed,%s" % (err))
         return False
 
 def get_job_namespace(client,name,namespace):
     try:
        return client.read_namespaced_job( name=name, namespace=namespace)
     except Exception as err:
-        print("delete_job_namespace failed,%s"%(err))
+        logger("delete_job_namespace failed,%s"%(err))
         return None
 def list_pod_namespace(client,namespace,label_selector):
     try:
        return client.list_namespaced_pod(namespace=namespace,label_selector=label_selector)
     except Exception as err:
-        print("list_pod_namespace failed,%s"%(err))
+        logger("list_pod_namespace failed,%s"%(err))
         return None
 
 
 def main():
+    # 创建一个logger
+    logger = logging.getLogger('mytest111')
+    logger.setLevel(logging.DEBUG)
+    format = logging.Formatter("%(asctime)s - %(message)s")    # output format
+    sh = logging.StreamHandler(stream=sys.stdout)    # output to standard output
+    sh.setFormatter(format)
+    logger.addHandler(sh)
+
     # Configs can be set in Configuration class directly or using helper
     # utility. If no argument provided, the config will be loaded from
     # default location.
@@ -51,11 +60,16 @@ def main():
 
     v1Batch = client.BatchV1Api()
     v1Core = client.CoreV1Api()
-    count = 100000
+
+    print("begin logger")
+    logger.setLevel(logging.DEBUG)
+    logger.info("begin info")
+    logger.error("begin error")
+
     w = watch.Watch()
     for event in w.stream(v1Batch.list_job_for_all_namespaces, timeout_seconds=0):
         try:
-            print("Event: %s %s %s" % (
+            logger("Event: %s %s %s" % (
             event['type'], event['object'].metadata.name, event['object'].metadata.namespace))
 
             if (event['type'] == "ADDED") or (event['type'] == "MODIFIED"):
@@ -65,14 +79,14 @@ def main():
 
                         #判断job的uid是否为空，为空则跳过处理步骤
                         if   object.metadata.uid == None or  object.metadata.uid == "":
-                            print("job %s %s uid is null, skip",object.metadata.name,object.metadata.namespace)
+                            logger("job %s %s uid is null, skip",object.metadata.name,object.metadata.namespace)
                             continue
 
                         #查找Job对应的Pod，如果所有Pod的状态都为Succeed，则删除所有Pod，否则跳过Job的操作步骤
                         label_selector = "controller-uid=" + object.metadata.uid
                         pods = list_pod_namespace(v1Core,object.metadata.namespace,label_selector)
 
-                        #print("pods: %s " % (pods.to_dict()))
+                        #logger("pods: %s " % (pods.to_dict()))
 
                         if pods != None :
                             for item in pods.items:
@@ -80,30 +94,30 @@ def main():
                                     ret = delete_pod_namespace(v1Core, item.metadata.name,
                                                                item.metadata.namespace)
                                     if ret:
-                                        print("Pod %s %s is deleted" % (
+                                        logger("Pod %s %s is deleted" % (
                                             item.metadata.name, item.metadata.namespace))
                                     else:
-                                        print("Pod %s %s delete failed" % (
+                                        logger("Pod %s %s delete failed" % (
                                             item.metadata.name, item.metadata.namespace))
                                 else :
-                                    print("job %s %s 's pod %s is Succeeded, skip", object.metadata.name,
+                                    logger("job %s %s 's pod %s is Succeeded, skip", object.metadata.name,
                                           object.metadata.namespace,item.metadata.name)
                                     continue
 
                         # 删除完Pod后，对Job进行删除
                         ret = delete_job_namespace(v1Batch, object.metadata.name,object.metadata.namespace)
                         if ret:
-                            print("Job %s %s is deleted" % (
+                            logger("Job %s %s is deleted" % (
                                 object.metadata.name, object.metadata.namespace))
                         else:
-                            print("Job %s %s delete failed" % (object.metadata.name, object.metadata.namespace))
+                            logger("Job %s %s delete failed" % (object.metadata.name, object.metadata.namespace))
             continue
         except Exception as err:
-            print("event watch process error,%s" % (err))
+            logger("event watch process error,%s" % (err))
             logging.exception(err)
             pass
     w.stop()
-    print("Ended.")
+    logger("Ended.")
 
 
 if __name__ == '__main__':

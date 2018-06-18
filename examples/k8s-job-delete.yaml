@@ -62,10 +62,11 @@ spec:
     spec:
       containers:
       - args:
-        - /python/examples/job-list.py
+        - -c
+        - python /python/examples/job-list.py
         command:
-        - python
-        image: yan234280533/k8s-job-delete:v1.3
+        - /bin/bash
+        image: yan234280533/k8s-job-delete:v1.4
         imagePullPolicy: Always
         name: k8s-job-delete
         resources:
