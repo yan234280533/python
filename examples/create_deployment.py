@@ -27,6 +27,9 @@ def main():
 
     with open(path.join(path.dirname(__file__), "nginx-deployment.yaml")) as f:
         dep = yaml.load(f)
+
+        print("dep: %s " % (dep))
+
         k8s_beta = client.ExtensionsV1beta1Api()
         resp = k8s_beta.create_namespaced_deployment(
             body=dep, namespace="default")
